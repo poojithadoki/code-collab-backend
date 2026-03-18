@@ -1,6 +1,8 @@
 const express = require("express");
 const Project = require("../models/Project");
 const authMiddleware = require("../middleware/authMiddleware");
+const Notification = require("../models/Notification");
+
 
 const router = express.Router();
 const { sendJoinRequest } = require("../controllers/projectController");
@@ -159,6 +161,14 @@ router.put("/requests/:projectId/:requestId/accept", authMiddleware, async (req,
 
     await project.save();
 
+    await Notification.create({
+  user: request.user,          // the requester
+  type: "REQUEST_ACCEPTED",
+  project: project._id,
+  fromUser: req.user.userId,   // the owner
+});
+
+
     res.json({ message: "Request accepted" });
   } catch (error) {
     console.error(error);
@@ -195,6 +205,14 @@ router.put("/requests/:projectId/:requestId/reject", authMiddleware, async (req,
     request.status = "rejected";
 
     await project.save();
+
+    await Notification.create({
+  user: request.user,
+  type: "REQUEST_REJECTED",
+  project: project._id,
+  fromUser: req.user.userId,
+});
+
 
     res.json({ message: "Request rejected" });
   } catch (error) {

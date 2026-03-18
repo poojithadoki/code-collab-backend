@@ -1,4 +1,7 @@
 const dns = require("dns");
+const notificationRoutes = require("./routes/notification");
+
+
 
 dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["1.1.1.1","8.8.8.8"])
@@ -11,6 +14,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/notifications", notificationRoutes);
 app.get("/favicon.ico", (req, res) => res.status(204));
 const authRoutes = require("./routes/auth");
 
