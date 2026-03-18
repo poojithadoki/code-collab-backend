@@ -18,5 +18,25 @@ router.get("/", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+// Mark one notification as read
+router.put("/:id/read", authMiddleware, async (req, res) => {
+  try {
+    const notif = await Notification.findOneAndUpdate(
+      { _id: req.params.id, user: req.user.userId },
+      { read: true },
+      { new: true }
+    );
+
+    if (!notif) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    res.json(notif);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 
 module.exports = router;
