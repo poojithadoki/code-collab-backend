@@ -80,7 +80,6 @@ router.get("/all", async (req, res) => {
 router.post("/request/:id",authMiddleware,sendJoinRequest);
 router.get("/requests/:id", authMiddleware, async (req, res) => {
   try {
-
     const project = await Project.findById(req.params.id)
       .populate("requests.user", "name email")
       .populate("owner", "name email");
@@ -88,25 +87,122 @@ router.get("/requests/:id", authMiddleware, async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
-    if (project.owner.toString() === req.user.userId) {
-  return res.status(400).json({ message: "Owner is already a member" });
-}
 
     // Only project owner can see requests
     if (project.owner._id.toString() !== req.user.userId) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // Return only pending requests
+    // Only pending requests
     const pendingRequests = project.requests.filter(
       (request) => request.status === "pending"
     );
 
     res.json(pendingRequests);
-
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
+// GET SINGLE PROJECT BY ID (public or protected as you prefer)
+router.get("/:id", async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .populate("owner", "name email")
+      .populate("teamMembers", "name email");
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    res.json(project);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ACCEPT join request
+router.put("/requests/:projectId/:requestId/accept", authMiddleware, async (req, res) => {
+  try {
+    const { projectId, requestId } = req.params;
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Only owner can accept
+    if (project.owner.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const request = project.requests.id(requestId); // Mongoose subdoc lookup
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({ message: "Request is already processed" });
+    }
+
+    request.status = "accepted";
+
+    // Add user to teamMembers if not already there
+    if (!project.teamMembers.includes(request.user)) {
+      project.teamMembers.push(request.user);
+    }
+
+    await project.save();
+
+    res.json({ message: "Request accepted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// REJECT join request
+router.put("/requests/:projectId/:requestId/reject", authMiddleware, async (req, res) => {
+  try {
+    const { projectId, requestId } = req.params;
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Only owner can reject
+    if (project.owner.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const request = project.requests.id(requestId);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({ message: "Request is already processed" });
+    }
+
+    request.status = "rejected";
+
+    await project.save();
+
+    res.json({ message: "Request rejected" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 module.exports = router;
 
