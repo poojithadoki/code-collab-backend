@@ -90,10 +90,15 @@ router.get("/requests/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Only project owner can see requests
-    if (project.owner._id.toString() !== req.user.userId) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
+    //all team members can see requests
+   const isOwner = project.owner._id.toString() === req.user.userId;
+   const isMember = project.teamMembers.some(
+  (member) => member.toString() === req.user.userId
+);
+
+if (!isOwner && !isMember) {
+  return res.status(403).json({ message: "Not authorized" });
+}
 
     // Only pending requests
     const pendingRequests = project.requests.filter(
